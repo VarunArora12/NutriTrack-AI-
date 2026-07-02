@@ -28,6 +28,10 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:5001",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://example.com",
+
+    "https://nutri-track-ai-j.vercel.app",
+    "https://nutri-track-ai-gj5yypvo1-varunarora9011-4154s-projects.vercel.app",
 ]
 
 
