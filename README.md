@@ -1,83 +1,238 @@
 # 🥗 NutriTrack AI
 
-NutriTrack AI is a clean full-stack nutrition tracking app built with React, Vite, Tailwind CSS, Flask, and SQLite.
+A modern full-stack AI-powered nutrition tracking application that helps users log meals, estimate nutrition, monitor daily calorie intake, and visualize weekly nutrition trends.
 
-It includes database-backed authentication, user profiles, meal logging, Indian food search, nutrition estimation, daily tracking, and weekly analytics charts.
+🔗 **Live Demo:** https://nutri-track-ai-j.vercel.app  
+💻 **GitHub Repository:** https://github.com/VarunArora12/NutriTrack-AI
 
-## Tech Stack
+---
 
-- React + Vite
+## ✨ Features
+
+- 🔐 Secure authentication (Sign Up / Login / Logout)
+- 👤 User profile management
+- 🍽️ Meal logging with nutrition tracking
+- 🔎 Indian food search
+- 🤖 AI-powered nutrition estimation from meal descriptions
+- 📊 Daily calorie, protein, carbs & fat dashboard
+- 📈 Weekly nutrition analytics
+- 🔒 Secure session management
+- ☁️ Deployed on Vercel
+
+---
+
+## 🛠️ Tech Stack
+
+### Frontend
+- React 18
+- Vite
 - Tailwind CSS
+- React Router
+- Recharts
 
 ### Backend
 - Flask
-- SQLite
-- Werkzeug password hashing
-- Secure database-backed session tokens
-- Recharts
+- Supabase (Database)
+- Werkzeug (Password Hashing)
+- Flask-CORS
 
-## Project Structure
+### Deployment
+- Vercel (Frontend)
+- Vercel Serverless Functions (Backend)
 
-```txt
+---
+
+## 📸 Screenshots
+
+> Add screenshots inside a `screenshots/` folder.
+
+| Login | Dashboard |
+|-------|-----------|
+| ![](screenshots/login.png) | ![](screenshots/dashboard.png) |
+
+| Meal Log | Analytics |
+|----------|-----------|
+| ![](screenshots/meal-log.png) | ![](screenshots/analysis.png) |
+
+---
+
+## 🚀 Live Demo
+
+Visit the application here:
+
+**https://nutri-track-ai-j.vercel.app**
+
+---
+
+## 📁 Project Structure
+
+```text
 nutritrack-ai/
+│
 ├── frontend/
 │   ├── src/
-│   │   ├── api.js
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── styles/index.css
-│   ├── index.html
+│   ├── public/
 │   ├── package.json
-│   ├── postcss.config.js
-│   ├── tailwind.config.js
 │   └── vite.config.js
-└── backend/
-    ├── app.py
-    ├── auth.py
-    ├── database.py
-    ├── nutrition.py
-    ├── requirements.txt
-    └── vercel.json
+│
+├── backend/
+│   ├── app.py
+│   ├── auth.py
+│   ├── database.py
+│   ├── nutrition.py
+│   ├── requirements.txt
+│   └── vercel.json
+│
+└── README.md
 ```
 
-## Run Locally
+---
 
-### Backend
+## ⚙️ Installation
 
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/VarunArora12/NutriTrack-AI.git
+
+cd NutriTrack-AI
+```
+
+---
+
+### 2. Backend Setup
+
+```bash
 cd backend
 
 pip install -r requirements.txt
 
 python app.py
+```
 
-### Frontend
+---
 
+### 3. Frontend Setup
+
+```bash
 cd frontend
 
 npm install
-npm run dev -- --host 0.0.0.0 --port 5001
+
+npm run dev
 ```
 
-The app runs on `http://localhost:5001`.
+Frontend runs at:
 
-## API Overview
+```
+http://localhost:5173
+```
 
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `GET /api/profile`
-- `PUT /api/profile`
-- `GET /api/foods?q=roti`
-- `POST /api/nutrition/estimate`
-- `GET /api/meals?date=YYYY-MM-DD`
-- `POST /api/meals`
-- `DELETE /api/meals/:id`
-- `GET /api/dashboard/today`
-- `GET /api/analytics/week`
+Backend runs at:
 
-## Notes
+```
+http://localhost:5002
+```
 
-- The built-in food database lives in `backend/nutrition.py`.
-- Session tokens are generated securely, hashed before storage, and expire after 7 days.
-- The SQLite database is created automatically in `backend/instance/nutritrack.db`.
+---
+
+## 🔑 Environment Variables
+
+### Backend
+
+Create a `.env` file inside the `backend` folder.
+
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+SECRET_KEY=your_secret_key
+```
+
+### Frontend
+
+Create a `.env` file inside the `frontend` folder.
+
+```env
+VITE_API_URL=http://localhost:5002/api
+```
+
+---
+
+## 📡 API Endpoints
+
+### Authentication
+
+| Method | Endpoint |
+|---------|----------|
+| POST | `/api/auth/signup` |
+| POST | `/api/auth/login` |
+| POST | `/api/auth/logout` |
+| GET | `/api/auth/me` |
+
+### Profile
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/api/profile` |
+| PUT | `/api/profile` |
+
+### Meals
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/api/meals` |
+| POST | `/api/meals` |
+| DELETE | `/api/meals/:id` |
+
+### Dashboard
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/api/dashboard/today` |
+| GET | `/api/analytics/week` |
+
+### Nutrition
+
+| Method | Endpoint |
+|---------|----------|
+| GET | `/api/foods?q=` |
+| POST | `/api/nutrition/estimate` |
+
+---
+
+## 🔒 Security Features
+
+- Password hashing using Werkzeug
+- Secure session tokens
+- Database-backed authentication
+- Protected API routes
+- CORS protection
+- Environment variables for sensitive credentials
+
+---
+
+## 🎯 Future Improvements
+
+- 📷 AI food image recognition
+- 🎙️ Voice meal logging
+- 📱 Progressive Web App (PWA)
+- 🌙 Dark mode
+- 🍎 Barcode scanner
+- 🥗 Personalized meal recommendations
+- 🔔 Daily reminders
+- 📅 Monthly nutrition reports
+
+---
+
+## 👨‍💻 Author
+
+**Varun Arora**
+
+- GitHub: https://github.com/VarunArora12
+- LinkedIn: https://www.linkedin.com/in/varun-arora1
+
+---
+
+## ⭐ Support
+
+If you found this project useful, consider giving it a **⭐ Star** on GitHub!
