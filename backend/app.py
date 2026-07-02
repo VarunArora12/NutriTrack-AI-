@@ -40,10 +40,9 @@ def create_app():
     app.config["SECRET_KEY"] = "dev-secret-change-before-production"
 
     CORS(
-        app,
-        resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
-        supports_credentials=True,
-    )
+    app,
+    resources={r"/api/*": {"origins": "*"}},
+)
 
     @app.errorhandler(404)
     def not_found(_error):
