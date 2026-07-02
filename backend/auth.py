@@ -6,7 +6,12 @@ from functools import wraps
 from flask import g, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database import get_connection, row_to_dict
+from database import (
+    create_session_record,
+    delete_expired_sessions,
+    delete_session_record,
+    get_user_for_session,
+)
 
 
 SESSION_DAYS = 7
@@ -25,14 +30,7 @@ def create_session(user_id):
     token_hash = _hash_token(raw_token)
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
 
-    with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO sessions (user_id, token_hash, expires_at)
-            VALUES (?, ?, ?)
-            """,
-            (user_id, token_hash, expires_at.isoformat()),
-        )
+    create_session_record(user_id, token_hash, expires_at.isoformat())
 
     return raw_token
 
@@ -41,11 +39,7 @@ def delete_session(raw_token):
     if not raw_token:
         return
 
-    with get_connection() as connection:
-        connection.execute(
-            "DELETE FROM sessions WHERE token_hash = ?",
-            (_hash_token(raw_token),),
-        )
+    delete_session_record(_hash_token(raw_token))
 
 
 def get_current_user():
@@ -56,19 +50,8 @@ def get_current_user():
     token_hash = _hash_token(raw_token)
     now = datetime.now(timezone.utc).isoformat()
 
-    with get_connection() as connection:
-        connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
-        row = connection.execute(
-            """
-            SELECT users.*
-            FROM sessions
-            JOIN users ON users.id = sessions.user_id
-            WHERE sessions.token_hash = ? AND sessions.expires_at > ?
-            """,
-            (token_hash, now),
-        ).fetchone()
-
-    return row_to_dict(row)
+    delete_expired_sessions(now)
+    return get_user_for_session(token_hash, now)
 
 
 def login_required(view):

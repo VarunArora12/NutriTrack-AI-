@@ -2,7 +2,6 @@ from datetime import date, datetime, timedelta
 
 from flask import Flask, g, jsonify, request
 from flask_cors import CORS
-from sqlite3 import IntegrityError
 
 from auth import (
     create_session,
@@ -12,7 +11,15 @@ from auth import (
     password_matches,
     public_user,
 )
-from database import database_status, get_connection, initialize_database, row_to_dict
+from database import (
+    create_meal,
+    create_user,
+    database_status,
+    delete_meal_for_user,
+    get_user_by_email,
+    list_meals_between,
+    update_user_profile,
+)
 from nutrition import estimate_meal, sample_foods, search_foods
 
 
@@ -33,8 +40,6 @@ def create_app():
         resources={r"/api/*": {"origins": ALLOWED_ORIGINS}},
         supports_credentials=True,
     )
-
-    initialize_database()
 
     @app.errorhandler(404)
     def not_found(_error):
@@ -58,33 +63,34 @@ def create_app():
     @app.post("/api/auth/signup")
     def signup():
         data = _json_body()
+
         name = _clean_text(data.get("name"))
         email = _clean_text(data.get("email")).lower()
         password = data.get("password", "")
 
         if len(name) < 2:
             return _bad_request("Name must be at least 2 characters.")
+
         if "@" not in email or "." not in email:
             return _bad_request("Enter a valid email address.")
+
         if len(password) < 8:
             return _bad_request("Password must be at least 8 characters.")
 
-        try:
-            with get_connection() as connection:
-                cursor = connection.execute(
-                    """
-                    INSERT INTO users (name, email, password_hash)
-                    VALUES (?, ?, ?)
-                    """,
-                    (name, email, hash_password(password)),
-                )
-                user_id = cursor.lastrowid
-                user = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        except IntegrityError:
-            return jsonify({"error": "An account with this email already exists."}), 409
+        if get_user_by_email(email) is not None:
+            return jsonify(
+                {"error": "An account with this email already exists."}
+            ), 409
 
-        token = create_session(user_id)
-        return jsonify({"token": token, "user": public_user(row_to_dict(user))}), 201
+        user = create_user(name, email, hash_password(password))
+        token = create_session(user["id"])
+
+        return jsonify(
+            {
+                "token": token,
+                "user": public_user(user),
+            }
+        ), 201
 
     @app.post("/api/auth/login")
     def login():
@@ -92,14 +98,13 @@ def create_app():
         email = _clean_text(data.get("email")).lower()
         password = data.get("password", "")
 
-        with get_connection() as connection:
-            user = connection.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        user = get_user_by_email(email)
 
         if user is None or not password_matches(user["password_hash"], password):
             return jsonify({"error": "Invalid email or password."}), 401
 
         token = create_session(user["id"])
-        return jsonify({"token": token, "user": public_user(row_to_dict(user))})
+        return jsonify({"token": token, "user": public_user(user)})
 
     @app.post("/api/auth/logout")
     @login_required
@@ -142,30 +147,22 @@ def create_app():
         weight_kg = _optional_number(data.get("weight_kg"))
         activity_level = _clean_text(data.get("activity_level")) or "moderate"
 
-        with get_connection() as connection:
-            connection.execute(
-                """
-                UPDATE users
-                SET name = ?, calorie_goal = ?, protein_goal = ?, carbs_goal = ?, fat_goal = ?,
-                    age = ?, height_cm = ?, weight_kg = ?, activity_level = ?
-                WHERE id = ?
-                """,
-                (
-                    name,
-                    calorie_goal,
-                    protein_goal,
-                    carbs_goal,
-                    fat_goal,
-                    age,
-                    height_cm,
-                    weight_kg,
-                    activity_level,
-                    g.user["id"],
-                ),
-            )
-            user = connection.execute("SELECT * FROM users WHERE id = ?", (g.user["id"],)).fetchone()
+        user = update_user_profile(
+            g.user["id"],
+            {
+                "name": name,
+                "calorie_goal": calorie_goal,
+                "protein_goal": protein_goal,
+                "carbs_goal": carbs_goal,
+                "fat_goal": fat_goal,
+                "age": age,
+                "height_cm": height_cm,
+                "weight_kg": weight_kg,
+                "activity_level": activity_level,
+            },
+        )
 
-        return jsonify({"user": public_user(row_to_dict(user))})
+        return jsonify({"user": public_user(user)})
 
     @app.get("/api/foods")
     @login_required
@@ -190,17 +187,7 @@ def create_app():
             return day
 
         start, end = _day_bounds(day)
-        with get_connection() as connection:
-            rows = connection.execute(
-                """
-                SELECT * FROM meals
-                WHERE user_id = ? AND logged_at >= ? AND logged_at < ?
-                ORDER BY logged_at DESC
-                """,
-                (g.user["id"], start, end),
-            ).fetchall()
-
-        meals = [_meal_response(row_to_dict(row)) for row in rows]
+        meals = [_meal_response(row) for row in list_meals_between(g.user["id"], start, end)]
         return jsonify({"date": day.isoformat(), "meals": meals, "totals": _sum_meals(meals)})
 
     @app.post("/api/meals")
@@ -220,39 +207,25 @@ def create_app():
             return _bad_request(result["message"])
 
         totals = result["totals"]
-        with get_connection() as connection:
-            cursor = connection.execute(
-                """
-                INSERT INTO meals (user_id, food_name, description, meal_type, serving_amount, calories, protein, carbs, fat, logged_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    g.user["id"],
-                    description,
-                    description,
-                    meal_type,
-                    1,
-                    totals["calories"],
-                    totals["protein"],
-                    totals["carbs"],
-                    totals["fat"],
-                    logged_at.isoformat(timespec="seconds"),
-                ),
-            )
-            meal = connection.execute("SELECT * FROM meals WHERE id = ?", (cursor.lastrowid,)).fetchone()
+        meal = create_meal(
+            {
+                "user_id": g.user["id"],
+                "description": description,
+                "meal_type": meal_type,
+                "calories": totals["calories"],
+                "protein": totals["protein"],
+                "carbs": totals["carbs"],
+                "fat": totals["fat"],
+                "logged_at": logged_at.isoformat(timespec="seconds"),
+            }
+        )
 
-        return jsonify({"meal": _meal_response(row_to_dict(meal)), "estimate": result}), 201
+        return jsonify({"meal": _meal_response(meal), "estimate": result}), 201
 
     @app.delete("/api/meals/<int:meal_id>")
     @login_required
     def delete_meal(meal_id):
-        with get_connection() as connection:
-            cursor = connection.execute(
-                "DELETE FROM meals WHERE id = ? AND user_id = ?",
-                (meal_id, g.user["id"]),
-            )
-
-        if cursor.rowcount == 0:
+        if not delete_meal_for_user(meal_id, g.user["id"]):
             return jsonify({"error": "Meal not found."}), 404
 
         return jsonify({"message": "Meal deleted."})
@@ -381,17 +354,7 @@ def _day_bounds(day):
 
 
 def _meals_between(user_id, start, end):
-    with get_connection() as connection:
-        rows = connection.execute(
-            """
-            SELECT * FROM meals
-            WHERE user_id = ? AND logged_at >= ? AND logged_at < ?
-            ORDER BY logged_at DESC
-            """,
-            (user_id, start, end),
-        ).fetchall()
-
-    return [_meal_response(row_to_dict(row)) for row in rows]
+    return [_meal_response(row) for row in list_meals_between(user_id, start, end)]
 
 
 def _meal_response(meal):
